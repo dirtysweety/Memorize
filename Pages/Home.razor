@@ -1,0 +1,89 @@
+@using BlazingComponents.Components
+@using Core = Memorize.Engine.Core
+@using MemorizeShared
+@using MemorizeShared.Other
+@attribute [Page, FirstPage]
+
+
+<BlazingPage Height="100%">
+    <Transition Height="100%">
+
+        <Row Style="justify-content: flex-end">
+            <BlazingCloseButton Click="OnCloseClick"></BlazingCloseButton>
+            <RowGap Gap="0.5%"></RowGap>
+        </Row>
+        
+        <ColumnGap Gap="60px"></ColumnGap>
+
+        <Row Style="justify-content: center">
+            <div style="font-size: 34px; color: white">Welcome</div>
+        </Row>
+        
+        <Column Style="flex-grow: 1; justify-content: center">
+            <Row Style="justify-content: center">
+                <BlazingButton Text="Study Lessons" Width="500px" Height="50px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickStudyLessons"></BlazingButton>
+            </Row>
+
+            <ColumnGap Gap="30px"></ColumnGap>
+        
+            <Row Style="justify-content: center">
+                <BlazingButton Text="Practice Random Words" Width="500px" Height="50px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickPracticeRandomWords"></BlazingButton>
+            </Row>
+        
+            <ColumnGap Gap="30px"></ColumnGap>
+        
+            <Row Style="justify-content: center">
+                <BlazingButton Text="Global Examination" Width="500px" Height="50px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickGlobalExamination"></BlazingButton>
+            </Row>
+        
+            <ColumnGap Gap="30px"></ColumnGap>
+        
+            <Row Style="justify-content: center">
+                <BlazingButton Text="Custom Examination" Width="500px" Height="50px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickCustomExamination"></BlazingButton>
+            </Row>
+        </Column>
+
+        <Row>
+            <RowGap Gap="1%"></RowGap>
+            <div style="font-size: 14px; color: #DAFFED; user-select: none">V @(Core.Version)</div>
+        </Row>
+        <ColumnGap Gap="20px"></ColumnGap>
+    </Transition>
+</BlazingPage>
+
+
+
+
+
+
+@code {
+
+    static async Task OnCloseClick()
+    {
+        await Core.WaitAsync(); // Wait for anything possibly in progress.
+        await Core.OnApplicationExitAsync();
+        Application.Exit();
+        Core.Signal(); // Not really required.
+    }
+
+
+    void OnClickStudyLessons()
+    {
+        Navigator.Navigate(nameof(LessonsPage));
+    }
+
+    void OnClickPracticeRandomWords()
+    {
+        Navigator.Navigate(nameof(RandomWordTestPage));
+    }
+
+    void OnClickGlobalExamination()
+    {
+
+    }
+
+    void OnClickCustomExamination()
+    {
+
+    }
+}

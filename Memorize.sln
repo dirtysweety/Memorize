@@ -1,0 +1,55 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34227.203
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Memorize", "Memorize.csproj", "{E101AE6D-1678-4CF6-8729-F3FCCE103548}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Memorize Updater", "..\Memorize Updater\Memorize Updater.csproj", "{6F09BC01-D8A3-437F-A2CB-AD983AD56776}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MemorizeShared", "..\MemorizeShared\MemorizeShared.csproj", "{1C69E004-3643-4A4C-888E-7E98835FF854}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlazingComponents", "..\BlazingComponents\BlazingComponents.csproj", "{7153904A-73A4-4F9D-B974-ED60152252A7}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlazingUtilities", "..\BlazingUtilities\BlazingUtilities.csproj", "{FC1EC1CA-FFCC-4032-A3F3-D54B65069A1D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Memorize Agent", "..\Memorize Agent\Memorize Agent.csproj", "{563F78D9-9B7C-4EBF-ACD1-F09BF51D952B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E101AE6D-1678-4CF6-8729-F3FCCE103548}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E101AE6D-1678-4CF6-8729-F3FCCE103548}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E101AE6D-1678-4CF6-8729-F3FCCE103548}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E101AE6D-1678-4CF6-8729-F3FCCE103548}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F09BC01-D8A3-437F-A2CB-AD983AD56776}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F09BC01-D8A3-437F-A2CB-AD983AD56776}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F09BC01-D8A3-437F-A2CB-AD983AD56776}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F09BC01-D8A3-437F-A2CB-AD983AD56776}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C69E004-3643-4A4C-888E-7E98835FF854}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C69E004-3643-4A4C-888E-7E98835FF854}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C69E004-3643-4A4C-888E-7E98835FF854}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C69E004-3643-4A4C-888E-7E98835FF854}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7153904A-73A4-4F9D-B974-ED60152252A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7153904A-73A4-4F9D-B974-ED60152252A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7153904A-73A4-4F9D-B974-ED60152252A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7153904A-73A4-4F9D-B974-ED60152252A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC1EC1CA-FFCC-4032-A3F3-D54B65069A1D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC1EC1CA-FFCC-4032-A3F3-D54B65069A1D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC1EC1CA-FFCC-4032-A3F3-D54B65069A1D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC1EC1CA-FFCC-4032-A3F3-D54B65069A1D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{563F78D9-9B7C-4EBF-ACD1-F09BF51D952B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{563F78D9-9B7C-4EBF-ACD1-F09BF51D952B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{563F78D9-9B7C-4EBF-ACD1-F09BF51D952B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{563F78D9-9B7C-4EBF-ACD1-F09BF51D952B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3412EA7A-61B8-4D21-AF02-A0C7CB59C1C8}
+	EndGlobalSection
+EndGlobal

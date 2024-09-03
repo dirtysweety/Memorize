@@ -1,0 +1,22 @@
+﻿html, body
+{
+    margin: 0 0 0 0;
+    padding: 0 0 0 0;
+}
+
+* {
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+
+* ::-webkit-scrollbar {
+    display: none;
+}
+
+* ::placeholder {
+    color: lightgray;
+}
+
+* [style*="flex-direction: column;"] > * {
+    flex-shrink: 0;
+}

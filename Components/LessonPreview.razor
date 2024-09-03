@@ -1,0 +1,93 @@
+﻿@using BlazingComponents.Components
+@using Memorize.Other
+@using MemorizeShared
+@using Core = Memorize.Engine.Core
+
+
+<Row Style="@(ContainerStyle())" @onclick="OnClick" @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave">
+    <RowGap Gap="1%"></RowGap>
+    <Row Style="width: 98%; justify-content: space-between; align-items: center">
+        <BlazingStateButton @bind-State:get="@(_state)" @bind-State:set="ChangeState" T="LessonState" RepresentationFunc="Core.LessonStateRepresentation" Width="150px" Height="40px" FontSize="16px" Color="@(_stateButtonColor)" HoverColor="@(_stateButtonHoverColor)" Border="@(_stateButtonBorder)" HoverBorder="@(_stateButtonHoverBorder)" Style="Cursor: pointer"></BlazingStateButton>
+        <div style="user-select: none; font-size: 20px; color: lavender">@(Lesson!.Title)</div>
+        <div style="width: 150px"></div> @*Dummy*@
+    </Row>
+    <RowGap Gap="1%"></RowGap>
+</Row>
+
+
+@code {
+    string _fixedId = "";
+    LessonState _state; // Performance reasons
+    bool _hovering;
+    string _stateButtonColor = "";
+    string _stateButtonHoverColor = "";
+    string _stateButtonBorder = "";
+    string _stateButtonHoverBorder = "";
+
+    [Parameter, EditorRequired]
+    public Lesson? Lesson { get; set; }
+
+    [Parameter, EditorRequired]
+    public EventCallback<Lesson> Click { get; set; }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        if (Lesson == null) throw new Exception("Lesson unavailable");
+        _fixedId = Lesson.Id;
+        _state = Core.LessonStates.TryGetValue(Lesson.Id, out var state) ? state : LessonState.NotStudied;
+        SetStateButtonColors();
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Lesson == null) throw new Exception("Lesson unavailable");
+        if (Lesson.Id != _fixedId) throw new Exception("New lesson object was provided.");
+    }
+
+    string ContainerStyle()
+    {
+        string backColor = _state switch
+        {
+
+            LessonState.NotStudied => _hovering ? Const.Colors.BackColorNotStudied : Const.Colors.BackColorNotStudiedHover,
+            LessonState.Studied => _hovering ? Const.Colors.BackColorStudied : Const.Colors.BackColorStudiedHover,
+            LessonState.Highlighted => _hovering ? Const.Colors.BackColorHighlighted : Const.Colors.BackColorHighlightedHover,
+            _ => throw new ArgumentOutOfRangeException()
+        };
+        return $"cursor: pointer; height: 80px; background-color: {backColor}";
+    }
+
+    void SetStateButtonColors()
+    {
+        _stateButtonColor = "lavender";
+        _stateButtonHoverColor = "white";
+        _stateButtonBorder = "1px solid lavender";
+        _stateButtonHoverBorder = "1px solid white";
+    }
+
+    private async Task ChangeState(LessonState state)
+    {
+        await Core.WaitAsync();
+        _state = state;
+        await Core.ChangeLessonStateAsync(Lesson!.Id, state);
+        //SetStateButtonColors(); They are fixed.
+        Core.Signal();
+    }
+
+    private Task OnClick()
+    {
+        return Click.InvokeAsync(Lesson!);
+    }
+
+    private void OnMouseEnter(MouseEventArgs obj)
+    {
+        _hovering = true;
+    }
+
+    private void OnMouseLeave(MouseEventArgs obj)
+    {
+        _hovering = false;
+    }
+}

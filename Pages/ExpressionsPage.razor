@@ -1,0 +1,174 @@
+﻿@* @using RazorClassLibrary1.Components
+@using RazorClassLibrary1.Components.Binding
+@using Memorize.Components
+@using Memorize.Engine
+@using Memorize.Other
+@attribute [Page]
+
+
+<BlazingPage Padding="5px">
+    <Transition Height="100%" TransitionDuration="400ms">
+
+        <Row>
+            <RowGap Gap="0.5%"></RowGap>
+            <Row Style="flex-grow: 1; justify-content: space-between; align-items: center">
+                <BlazingButton Width="100px" Height="40px" FontSize="22px" Text="Return" Color="lavender" HoverColor="white" Click="OnClickBack"></BlazingButton>
+                <BlazingCloseButton Click="OnCloseClick"></BlazingCloseButton>
+            </Row>
+            <RowGap Gap="0.5%"></RowGap>
+        </Row>
+
+        <Row Style="justify-content: center">
+            <div style="font-size: 34px; color: white">All Expressions</div>
+        </Row>
+
+        <ColumnGap Gap="60px"></ColumnGap>
+
+        <Row Style="justify-content: center">
+            <BlazingSearchBox @bind-Context:set="OnSearchContextChanged" @bind-Context:get="@(_searchBoxContext)" T="Expression" Placeholder="Search..." Collection="@_searchCollection" Selector="@(e => e.Value)" Width="600px" Height="40px" FontSize="16px" BorderNormal="1px solid #778DA9" BorderHover="1px solid #98AFC7" BorderTyping="1px solid gold" ColorChangeWhileTyping="true" TextColor="white" DelayMilliseconds="2000"></BlazingSearchBox>
+        </Row>
+
+        <ColumnGap Gap="80px"></ColumnGap>
+
+        <Row Style="justify-content: center">
+            <Column Width="70%">
+                <ColumnGap Gap="20px"></ColumnGap>
+                @foreach (var e in _expressions)
+                {
+                    <ColumnGap Gap="10px"></ColumnGap>
+                    <ExpressionDisplay @ref="_refs[e.Id]" @key="e" Expression="@(e)" @bind-Context:get="@(_contexts[e.Id])" @bind-Context:set="OnExpressionDisplayContextChanged" ExpressionRemoved="OnExpressionRemoved"></ExpressionDisplay>
+                }
+            </Column>
+        </Row>
+        <ColumnGap Gap="200px"></ColumnGap>
+    </Transition>
+</BlazingPage>
+
+
+
+
+
+
+@code {
+    private BlazingSearchBoxContext<Expression>? _searchBoxContext;
+
+    readonly List<Expression> _expressions = new();
+    readonly List<Expression> _searchCollection = new();
+
+    private readonly Dictionary<string, ExpressionDisplayContext> _contexts = new();
+    readonly Dictionary<string, ExpressionDisplay?> _refs = new();
+
+    private void OnSearchContextChanged(BlazingSearchBoxContext<Expression>? context)
+    {
+        _searchBoxContext = context ?? throw new Exception("Unexpected search box context.");
+        if (!_searchBoxContext.WasSearch)
+        {
+            CancelTyping(); // Cancel typing before returning and performing search.
+            return;
+        }
+        context.ForceSearching = false; // If was true.
+        Filter();
+    }
+
+    void RenewSearchCollection() //Remove and add/remove single practice
+    {
+        _searchCollection.Clear();
+        _searchCollection.AddRange(Core.Expressions);
+    }
+
+    private void RemoveUnmatched()
+    {
+        var toRemove = new List<Expression>();
+        foreach (var displaying in _expressions)
+        {
+            var inMatches = _searchBoxContext!.Matches.FirstOrDefault(e => e.Id == displaying.Id);
+            if (inMatches == null)
+            {
+    //Not a match. Remove it and it's ref, And it's context if totally removed.
+                toRemove.Add(displaying);
+                _refs.Remove(displaying.Id);
+                var inCore = Core.Expressions.FirstOrDefault(e => e.Id == displaying.Id);
+                if (inCore == null)
+                {
+    //Totally removed
+                    _contexts.Remove(displaying.Id);
+                }
+            }
+        }
+        foreach (var item in toRemove) _expressions.Remove(item);
+    }
+
+    private void AddMatched()
+    {
+        foreach (var match in _searchBoxContext!.Matches)
+        {
+            var inList = _expressions.FirstOrDefault(e => e.Id == match.Id);
+            if (inList == null)
+            {
+    //Newly matched. Add it and it's ref, And it's context if newly created
+    //BUT, Expressions do not get added in this page. So it's certainly not a new one.
+                _refs.Add(match.Id, null);
+                _expressions.Add(match);
+                if (!_contexts.ContainsKey(match.Id))
+                {
+                    _contexts.Add(match.Id, new ExpressionDisplayContext(false));
+                }
+            }
+        }
+    }
+
+    private void Filter()
+    {
+        if (_searchBoxContext == null) throw new Exception("Search context is null");
+        RemoveUnmatched();
+        AddMatched();
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _searchBoxContext = new BlazingSearchBoxContext<Expression>("", true);
+        RenewSearchCollection();
+    }
+
+    private void OnExpressionDisplayContextChanged(ExpressionDisplayContext context)
+    {
+        if (context.Expression == null) throw new Exception("The context or it's Expression is null");
+        _contexts[context.Expression.Id] = context;
+        if (!context.Expanded) CancelTyping();
+    }
+
+    async Task OnCloseClick()
+    {
+        CancelTyping(); //CancelTyping should not do WaitAsync as the event that raises later does it.
+        await Core.TaskQueue.WaitAsync(); // Wait for anything possibly in progress.
+        await Core.OnApplicationExitAsync();
+        Application.Exit();
+        Core.TaskQueue.Signal(); // Not really required.
+    }
+
+
+    private void OnExpressionRemoved(Expression e)
+    {
+        RenewSearchCollection();
+    //Always remember that preparing parameter values happens before applying them and
+    //components get those values after all are ready.
+        _searchBoxContext!.ForceSearching = true;
+        CancelTyping();
+    }
+
+    public void OnClickBack(MouseEventArgs args)
+    {
+        CancelTyping();
+        Navigator.Navigate(nameof(Home));
+    }
+
+    private void CancelTyping()
+    {
+        foreach (var pair in _refs)
+        {
+            pair.Value?.CancelTyping();
+        }
+    }
+
+} *@

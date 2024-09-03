@@ -1,0 +1,102 @@
+﻿@using BlazingComponents.Components
+@using Memorize.Engine
+@using Memorize.Other
+@using MemorizeShared
+@using SharedCore = MemorizeShared.Engine.Core
+
+
+<Row Style="justify-content: center">
+    <Row Width="75%" Style="justify-content: space-between; align-items: center">
+        <BlazingStateButton @bind-State:get="@(_state)" @bind-State:set="ChangeState" T="LessonState" RepresentationFunc="Core.LessonStateRepresentation" Width="150px" Height="40px" FontSize="16px" Color="@(_stateButtonColor)" HoverColor="@(_stateButtonHoverColor)" Border="@(_stateButtonBorder)" HoverBorder="@(_stateButtonHoverBorder)" Style="Cursor: pointer"></BlazingStateButton>
+        <div style="font-size: 34px; color: lavender; user-select: none">@(Lesson!.Title)</div>
+        <div style="width: 150px"></div>
+    </Row>
+</Row>
+
+<ColumnGap Gap="60px"></ColumnGap>
+
+@if (Lesson!.InnerTitle != "")
+{
+    <Row Style="justify-content: center">
+        <div style="font-size: 26px; color: lavender; user-select: none">@(Lesson!.InnerTitle)</div>
+    </Row>
+
+    <ColumnGap Gap="40px"></ColumnGap>
+}
+
+<Row Style="justify-content: center">
+    <Column Style="background-color: #923A62" Width="75%">
+        @foreach (var ex in Lesson!.Expressions)
+        {
+            <ExpressionDisplay @key="ex" Expression="@(ex)"></ExpressionDisplay>
+        }
+    </Column>
+</Row>
+
+
+@code {
+    string _fixedId = "";
+    LessonState _state; // Performance reasons
+
+    string _stateButtonColor = "";
+    string _stateButtonHoverColor = "";
+    string _stateButtonBorder = "";
+    string _stateButtonHoverBorder = "";
+
+
+    [Parameter, EditorRequired]
+    public Lesson? Lesson { get; set; }
+
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        if (Lesson == null) throw new Exception("Lesson unavailable");
+        _fixedId = Lesson.Id;
+        _state = Core.LessonStates.TryGetValue(Lesson.Id, out var state) ? state : LessonState.NotStudied;
+        SetStateButtonColors();
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Lesson == null) throw new Exception("Lesson unavailable");
+        if (Lesson.Id != _fixedId) throw new Exception("New lesson object was provided.");
+    }
+
+    private async Task ChangeState(LessonState state)
+    {
+        await SharedCore.TaskQueue.WaitAsync();
+        _state = state;
+        await Core.ChangeLessonStateAsync(Lesson!.Id, state);
+        SetStateButtonColors();
+        SharedCore.TaskQueue.Signal();
+    }
+
+    void SetStateButtonColors()
+    {
+        switch (_state)
+        {
+            case LessonState.NotStudied:
+                _stateButtonColor = Const.Colors.StateButtonColorNotStudied;
+                _stateButtonHoverColor = Const.Colors.StateButtonColorNotStudiedHover;
+                _stateButtonBorder = $"1px solid {Const.Colors.StateButtonColorNotStudied}";
+                _stateButtonHoverBorder = $"1px solid {Const.Colors.StateButtonColorNotStudiedHover}";
+                break;
+            case LessonState.Studied:
+                _stateButtonColor = Const.Colors.StateButtonColorStudied;
+                _stateButtonHoverColor = Const.Colors.StateButtonColorStudiedHover;
+                _stateButtonBorder = $"1px solid {Const.Colors.StateButtonColorStudied}";
+                _stateButtonHoverBorder = $"1px solid {Const.Colors.StateButtonColorStudiedHover}";
+                break;
+            case LessonState.Highlighted:
+                _stateButtonColor = Const.Colors.StateButtonColorHighlighted;
+                _stateButtonHoverColor = Const.Colors.StateButtonColorHighlightedHover;
+                _stateButtonBorder = $"1px solid {Const.Colors.StateButtonColorHighlighted}";
+                _stateButtonHoverBorder = $"1px solid {Const.Colors.StateButtonColorHighlightedHover}";
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
+}

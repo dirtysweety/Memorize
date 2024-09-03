@@ -1,0 +1,74 @@
+@using BlazingComponents
+@using BlazingComponents.Styling
+@using BlazingComponents.Components
+@using Memorize.Engine
+@using Memorize.Other
+@using MemorizeShared
+@using SharedCore = MemorizeShared.Engine.Core
+
+
+<Row @onmouseenter="OnMouseEnter" @onmouseleave="OnMouseLeave" @onclick="OnClick" Style="@(Style())">
+    <RowGap Gap="3%"></RowGap>
+    <Row Style="width: 94%; justify-content: space-between; align-items: center">
+        <div style="@(HighlightStyle())">@(Expression!.Value)</div>
+        <div style="user-select: none">@(Expression!.Meaning)</div>
+    </Row>
+    <RowGap Gap="3%"></RowGap>
+</Row>
+
+
+@code
+{
+    string _fixedExpressionId = "";
+    ExpressionState _state;
+    private bool _hovering;
+
+    [Parameter, EditorRequired]
+    public Expression? Expression { get; set; }
+
+    async Task OnClick()
+    {
+        await SharedCore.TaskQueue.WaitAsync();
+        _state = _state == ExpressionState.Normal ? ExpressionState.Highlighted : ExpressionState.Normal;
+        await Core.ChangeExpressionStateAsync(Expression!.Id, _state);
+        SharedCore.TaskQueue.Signal();
+    }
+
+    private void OnMouseEnter()
+    {
+        _hovering = true;
+    }
+
+    private void OnMouseLeave()
+    {
+        _hovering = false;
+    }
+
+    string Style()
+    {
+        var backColor = _hovering ? "#A0406B" : "transparent";
+        return $"border-radius: 5%; font-size: 18px; color: white; height: 60px; background-color: {backColor}";
+    }
+
+    string HighlightStyle()
+    {
+        var color = _state == ExpressionState.Normal ? "white" : "gold";
+        return $"user-select: none; color: {color}";
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        if (Expression == null) throw new Exception("Expression object not available to display");
+        _fixedExpressionId = Expression.Id;
+        _state = Core.ExpressionStates.TryGetValue(Expression.Id, out var state) ? state : ExpressionState.Normal;
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (Expression == null) throw new Exception("Expression object not available to display");
+        if (Expression.Id != _fixedExpressionId) throw new Exception("The ExpressionDisplay is provided with new Expression.");
+    }
+
+}

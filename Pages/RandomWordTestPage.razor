@@ -1,0 +1,171 @@
+﻿@using MemorizeShared.Other
+@using BlazingComponents.Components
+@using BlazingUtilities
+@using Memorize.Engine
+@using MemorizeShared
+@attribute [Page]
+
+
+<BlazingPage Height="100%">
+    <Transition Height="100%">
+
+        <Row>
+            <RowGap Gap="0.5%"></RowGap>
+            <Row Style="flex-grow: 1; justify-content: space-between; align-items: center">
+                <BlazingButton Width="100px" Height="40px" FontSize="22px" Text="Return" Color="lavender" HoverColor="white" Click="OnClickBack"></BlazingButton>
+                <BlazingCloseButton Click="OnCloseClick"></BlazingCloseButton>
+            </Row>
+            <RowGap Gap="0.5%"></RowGap>
+        </Row>
+        
+        @if (_ex == null)
+        {
+            <Row Style="flex-grow: 1; justify-content: center; align-items: center">
+                <div style="font-size: 28px; color: white; user-select: none">There is nothing to practice for now!</div>
+            </Row>
+        }
+        else
+        {
+            @if (_stage == StageBeforeStart)
+            {
+                <Row Style="flex-grow: 1; justify-content: center; align-items: center">
+                    <BlazingButton Width="200px" Height="60px" FontSize="26px" Text="Start" Border="1px solid lavender" HoverBorder="1px solid lime" Color="lavender" HoverColor="lime" Click="OnClickStart"></BlazingButton>
+                </Row>
+            }
+            else
+            {
+                <Column Style="flex-grow: 1">
+                    <Row Height="30%" Style="justify-content: center; align-items: center">
+                        <div style="font-size: 36px; color: white; user-select: none">@(_ex!.Value)</div>
+                    </Row>
+                    <Row Height="30%" Style="justify-content: center; align-items: center">
+                        @if (_stage == StageTimer)
+                        {
+                            <div style="font-size: 30px; color: white; user-select: none">@(_currentSecond)</div>
+                        }
+                        else
+                        {
+                            <div style="font-size: 34px; color: white; user-select: none">@(_ex!.Meaning)</div>
+                        }
+                    </Row>
+                    <Column Height="40%" Style="justify-content: center; align-items: center">
+                        @if (_stage == StageTimer)
+                        {
+                            <BlazingButton Width="100px" Height="40px" FontSize="18px" Text="Skip" Color="lavender" HoverColor="white" Click="OnClickSkipTimer"></BlazingButton>
+                        }
+                        else
+                        {
+                            <Row Style="flex-grow: 1; width: 100%; justify-content: center">
+                                <Column Width="70%" Style="justify-content: center">
+                                    <BlazingButton Height="60px" FontSize="22px" Text="Go Next" Color="lavender" HoverColor="white" Border="1px solid lavender" HoverBorder="1px solid white" Click="OnClickGoNext"></BlazingButton>
+                                </Column>
+                            </Row>
+                        }
+                    </Column>
+                </Column>
+            }
+        }
+
+    </Transition>
+</BlazingPage>
+
+
+@code
+{
+        const int Seconds = 3;
+
+        const int StageBeforeStart = 0;
+        const int StageTimer = 1;
+        const int StageButtons = 2;
+    int _stage = StageBeforeStart;
+    
+    int _currentSecond;
+
+    Expression? _ex;
+    TimedEventRaiser? _raiser;
+
+    async Task RandomizeAsync()
+    {
+        await Core.WaitAsync();
+        _ex = Core.Randomize();
+        if (_ex != null)
+        {
+            await Core.SaveAsync();
+        }
+        Core.Signal();
+    }
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _raiser = new TimedEventRaiser(1000, AfterASecond);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await base.OnParametersSetAsync();
+        await RandomizeAsync();
+    }
+
+    private void OnClickStart()
+    {
+        StartTimerStage();
+    }
+
+    private void StartTimerStage()
+    {
+        if (_raiser == null) throw new Exception("Raiser incorrectly initialized");
+        _stage = StageTimer;
+        _currentSecond = Seconds;
+        _raiser.Set();
+    }
+
+    void WorkItem()
+    {
+        _currentSecond--;
+        if (_currentSecond == 0)
+        {
+            _stage = StageButtons;
+        }
+        else
+        {
+            if (_raiser == null) throw new Exception("Raiser incorrectly initialized");
+            _raiser.Set();
+        }
+        StateHasChanged();
+    }
+
+    private Task AfterASecond()
+    {
+        return InvokeAsync(WorkItem);
+    }
+
+    private void OnClickSkipTimer()
+    {
+        if (_raiser == null) throw new Exception("Raiser incorrectly initialized");
+        _raiser.CancelIfRunning();
+        _stage = StageButtons;
+    }
+
+    void OnClickBack()
+    {
+        _raiser?.CancelIfRunning();
+        _raiser?.Dispose();
+        Navigator.Navigate(nameof(Home));
+    }
+
+    static async Task OnCloseClick()
+    {
+        await Core.WaitAsync(); // Wait for anything possibly in progress.
+        await Core.OnApplicationExitAsync();
+        Application.Exit();
+        Core.Signal(); // Not really required.
+    }
+
+    private async Task OnClickGoNext()
+    {
+        await RandomizeAsync();
+        if (_ex != null) StartTimerStage();
+    }
+    
+}

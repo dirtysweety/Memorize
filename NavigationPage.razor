@@ -1,0 +1,388 @@
+@using System.Reflection
+@using Memorize.Engine
+@using Memorize.Other
+@using BlazingComponents.Components
+@using System.Diagnostics
+@using Memorize.Pages
+@using MemorizeShared.Other
+
+
+@* <video autoplay="true" muted="true" loop="true" style="z-index: -1; position: fixed; height: 100%">
+    <source src="back2.mp4" type="video/mp4" />
+</video> *@
+
+
+@if (_backgroundReady)
+{
+    if (_pageStage == PageStageStarting)
+    {
+        <Row Height="50px" Style="justify-content: flex-end; opacity: 0">
+            @* Height of BlazingCloseButton *@
+        </Row>
+        <Column Style="flex-grow: 1">
+            <Row Height="50%" Style="justify-content: center; align-items: flex-end">
+                <Spinner></Spinner>
+            </Row>
+            <Transition Height="25%" TransitionDuration="800ms">
+                <Row Height="100%" Style="justify-content: center; align-items: center">
+                    <div style="font-size: 26px; color: white; user-select: none">Starting the app</div>
+                </Row>
+            </Transition>
+            <Row Height="25%" Style="justify-content: center; align-items: center">
+                @* Height of cancel button *@
+            </Row>
+        </Column>
+    }
+    else if (_pageStage == PageStageUpdate)
+    {
+        <Row Style="justify-content: flex-end">
+            <BlazingCloseButton Click="OnCloseClick"></BlazingCloseButton>
+            <RowGap Gap="0.5%"></RowGap>
+        </Row>
+        <Column Style="flex-grow: 1">
+            <Row Height="50%" Style="justify-content: center; align-items: flex-end">
+                @if (_spin)
+                {
+                    <Spinner></Spinner>
+                }
+            </Row>
+            <Transition Height="25%" TransitionDuration="800ms">
+                <Row Height="100%" Style="justify-content: center; align-items: center">
+                    <div style="font-size: 26px; color: white; user-select: none">@(_status)</div>
+                </Row>
+            </Transition>
+            <Row Height="25%" Style="justify-content: center; align-items: center">
+                @if (_showCancel)
+                {
+                    <BlazingButton Text="@(_cancelText)" Width="150px" Height="40px" FontSize="16px" Color="lavender" HoverColor="white" Click="OnClickCancel"></BlazingButton>
+                }
+            </Row>
+        </Column>
+    }
+    else
+    {
+        <DynamicComponent Type="@(Type.GetType(_currentPageFullName))"></DynamicComponent>
+    }
+}
+
+
+@code{
+    private bool _backgroundReady;
+    private bool _initialized;
+    string _currentPageFullName = "";
+    readonly Dictionary<string, string> _pages = new(); //Value contains full name
+
+    private CancellationTokenSource? _cancelSource;
+    private bool _cancelRequested;
+
+    private const int PageStageStarting = 0;
+    private const int PageStageUpdate = 1;
+    private const int PageStageApp = 2;
+
+    int _pageStage = PageStageStarting;
+
+    private const int StageNone = 0;
+    private const int StageGetZip = 1;
+    private const int StageExtract = 2;
+    private const int StageRun = 3;
+    private const int StageExitOrDelayCancelUI = 4;
+
+    int _stage = StageGetZip;
+    string _status = "Downloading updates";
+    bool _spin = true;
+    bool _showCancel = true;
+    string _cancelText = "Cancel";
+
+    bool _firstUpdateCycle = true;
+
+    bool _goNext = true;
+
+    private bool _canceledByExit;
+
+    private bool _argsChecked;
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await base.OnAfterRenderAsync(firstRender);
+
+        if (!_backgroundReady)
+        {
+            _backgroundReady = true;
+            StateHasChanged();
+            return;
+        }
+        if (!_initialized)
+        {
+            var assembly = Assembly.GetExecutingAssembly();
+            var types = assembly.GetTypes();
+            var pageTypes = types.Where(t => t.IsDefined(typeof(PageAttribute), false)).ToList();
+            foreach (var t in pageTypes)
+            {
+                if (t.FullName == null) throw new Exception("An invalid type is marked as a page");
+                _pages.Add(t.Name, t.FullName);
+            }
+            var firstPageFullName = pageTypes.FirstOrDefault(p => p.IsDefined(typeof(FirstPageAttribute), false))?.FullName ?? throw new Exception("First page of the app not defined");
+            _currentPageFullName = firstPageFullName;
+            Navigator.Init(this);
+            await Core.InitAsync();
+            _initialized = true;
+        }
+
+        if (!_argsChecked)
+        {
+            _argsChecked = true;
+            var args = Environment.GetCommandLineArgs().ToList();
+            string updStatus = "";
+            foreach (var arg in args)
+            {
+                if (arg.StartsWith("UpdStatus="))
+                {
+                    updStatus = arg.Replace("UpdStatus=", "");
+                    if (updStatus != "Successful")
+                    {
+                        try
+                        {
+                            await Core.SetFailedOrCanceledUpdateAttemptAsync();
+                        }
+                        catch
+                        {
+                            //Ignore
+                        }
+                    }
+                }
+                else if (arg.StartsWith("UpdFolder="))
+                {
+                    //If update has failed. Keep the update folder for troubleshooting
+                    //If update was successful or update status is not provided or has
+                    //been incorrectly ordered in arguments, fine, remove it.
+                    if (updStatus == "Failed")
+                    {
+                        continue;
+                    }
+                    //Core.GetUpdateFolderFullPath() is for the next update. Not previous.
+                    //We don't know where the prev version has put the folder. So we get it by arg.
+                    var updFolder = arg.Replace("UpdFolder=", "");
+                    if (!Directory.Exists(updFolder)) continue;
+                    try
+                    {
+                        Directory.Delete(updFolder, true);
+                    }
+                    catch
+                    {
+                        //Ignore
+                    }
+                }
+            }
+        }
+
+        if (_firstUpdateCycle)
+        {
+            _firstUpdateCycle = false;
+            var available= Core.UpdateAvailable;
+            var shouldAttempt = Core.ShouldAttemptUpdate();
+            bool shouldUpdate = available && shouldAttempt;
+            if (shouldUpdate)
+            {
+                _pageStage = PageStageUpdate;
+                _cancelSource = new CancellationTokenSource();
+            }
+            else
+            {
+                _pageStage = PageStageApp;
+            }
+            StateHasChanged();
+            return;
+        }
+
+        if (_pageStage == PageStageUpdate)
+        {
+            if (!_goNext) return;
+            _goNext = false; //Dont let any render do an update stage. Only renders that are supposed to.
+            await PerformNextUpdateStage();
+        }
+    }
+
+    private async Task PerformNextUpdateStage()
+    {
+        Task task;
+        int nextStage;
+        string nextStatus;
+        bool nextSpin;
+        bool nextShowCancel;
+        string nextCancelText;
+
+        switch (_stage)
+        {
+            case StageGetZip:
+                task = GetZip();
+                nextStage = StageExtract;
+                nextStatus = "Extracting update package";
+                nextSpin = true;
+                nextShowCancel = true;
+                nextCancelText = "Cancel";
+                break;
+            case StageExtract:
+                task = Extract();
+                nextStage = StageRun;
+                nextStatus = "Starting update process";
+                nextSpin = false;
+                nextShowCancel = false;
+                nextCancelText = "";
+                break;
+            case StageRun:
+                task = Run();
+                nextStage = StageNone;
+                nextStatus = "";
+                nextSpin = false;
+                nextShowCancel = false;
+                nextCancelText = "";
+                break;
+            case StageExitOrDelayCancelUI:
+                task = ExitOrDelay();
+                nextStage = StageNone;
+                nextStatus = "";
+                nextSpin = false;
+                nextShowCancel = false;
+                nextCancelText = "";
+                _pageStage = PageStageApp;
+                break;
+            case StageNone:
+                return;
+            default:
+                throw new Exception();
+        }
+
+        try
+        {
+            await task;
+            _spin = nextSpin;
+            _showCancel = nextShowCancel;
+            _cancelText = nextCancelText;
+            _stage = nextStage;
+            _status = nextStatus;
+        }
+        catch (OperationCanceledException)
+        {
+            _spin = false;
+            _showCancel = false;
+            _stage = StageExitOrDelayCancelUI;
+            _status = "Update canceled! Just a moment";
+            try
+            {
+                _cancelSource?.Dispose();
+                await Core.SetFailedOrCanceledUpdateAttemptAsync();
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+        catch
+        {
+            _spin = false;
+            _showCancel = true;
+            _cancelText = "Continue to the app";
+            _stage = StageNone;
+            _status = "Update failed!";
+            try
+            {
+                _cancelSource?.Dispose();
+                await Core.SetFailedOrCanceledUpdateAttemptAsync();
+
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+        finally
+        {
+            _goNext = true;
+            StateHasChanged();
+        }
+    }
+
+    async Task GetZip()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(3), _cancelSource!.Token);
+        _cancelSource.Token.ThrowIfCancellationRequested();
+        var updateDir = Core.GetUpdateFolderFullPath();
+        if (Directory.Exists(updateDir)) Directory.Delete(updateDir, true);
+        _cancelSource.Token.ThrowIfCancellationRequested();
+        Directory.CreateDirectory(updateDir);
+        using HttpClient client = new();
+        var stream = await client.GetStreamAsync(Core.UpdateSource, _cancelSource.Token);
+        _cancelSource.Token.ThrowIfCancellationRequested();
+        await using FileStream fs = new FileStream(Core.GetUpdaterZipFullPath(), FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        _cancelSource.Token.ThrowIfCancellationRequested();
+        await stream.CopyToAsync(fs, _cancelSource.Token);
+        _cancelSource.Token.ThrowIfCancellationRequested();
+    }
+
+    async Task Extract()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(3), _cancelSource!.Token);
+        var zip = Core.GetUpdaterZipFullPath();
+        if (!File.Exists(zip)) throw new Exception();
+        var destination = Core.GetUpdateFolderFullPath();
+        System.IO.Compression.ZipFile.ExtractToDirectory(zip, destination);
+        _cancelSource.Token.ThrowIfCancellationRequested();
+    }
+
+    async Task Run()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(5), _cancelSource!.Token);
+        _cancelSource.Token.ThrowIfCancellationRequested();
+        var exe = Core.GetUpdaterExeFullPath();
+        if (!File.Exists(exe)) throw new Exception("Could not recognize the updater.");
+        var info = new ProcessStartInfo(exe, new [] {$"Version={Core.Version}", $"MemFolder={AppDomain.CurrentDomain.BaseDirectory}"});
+        Process.Start(info);
+        Application.Exit();
+    }
+
+    async Task ExitOrDelay()
+    {
+        if (_canceledByExit)
+        {
+            await Core.OnApplicationExitAsync();
+            Application.Exit();
+        }
+        else
+        {
+            await Task.Delay(TimeSpan.FromSeconds(5), CancellationToken.None);
+        }
+    }
+
+    private Task OnCloseClick()
+    {
+        _canceledByExit = true;
+        return TryCancel();
+    }
+
+    private Task OnClickCancel()
+    {
+        if (_cancelText == "Cancel")
+        {
+            _canceledByExit = false;
+            return TryCancel();
+        }
+        _pageStage = PageStageApp;
+        return Task.CompletedTask;
+    }
+
+    Task TryCancel()
+    {
+        if (_cancelRequested) return Task.CompletedTask;
+        _cancelRequested = true;
+        return _cancelSource?.CancelAsync() ?? Task.CompletedTask;
+    }
+
+    public void Navigate(string pageName)
+    {
+        if (!_pages.ContainsKey(pageName)) throw new Exception("The page does not exist.");
+        _currentPageFullName = _pages[pageName];
+        StateHasChanged();
+    }
+
+}

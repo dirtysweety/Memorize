@@ -1,0 +1,55 @@
+@if (_ex == null)
+        {
+            <Row Style="flex-grow: 1; justify-content: center; align-items: center">
+                <div style="font-size: 28px; color: white; user-select: none">There is nothing to practice for now!</div>
+            </Row>
+        }
+else
+{
+    @if (_stage == StageBeforeStart)
+    {
+        <Row Style="flex-grow: 1; justify-content: center; align-items: center">
+            <BlazingButton Width="200px" Height="60px" FontSize="26px" Text="Start" Border="1px solid lavender" HoverBorder="1px solid lime" Color="lavender" HoverColor="lime" Click="OnClickStart"></BlazingButton>
+        </Row>
+    }
+    else
+    {
+        <Column Style="flex-grow: 1">
+            <Row Height="30%" Style="justify-content: center; align-items: center">
+                <div style="font-size: 36px; color: white; user-select: none">@(_ex!.Value)</div>
+            </Row>
+            <Row Height="30%" Style="justify-content: center; align-items: center">
+                @if (_stage == StageTimer)
+                {
+                    <div style="font-size: 30px; color: white; user-select: none">@(_currentSecond)</div>
+                }
+                else
+                {
+                    <div style="font-size: 34px; color: white; user-select: none">@(_ex!.Meaning)</div>
+                }
+            </Row>
+            <Column Height="40%" Style="justify-content: center; align-items: center">
+                @if (_stage == StageTimer)
+                {
+                    <BlazingButton Width="100px" Height="40px" FontSize="18px" Text="Skip" Color="lavender" HoverColor="white" Click="OnClickSkipTimer"></BlazingButton>
+                }
+                else
+                {
+                    <Row Style="flex-grow: 1; width: 100%; justify-content: center">
+                        <Column Width="70%" Style="justify-content: center">
+                            <BlazingButton Height="60px" FontSize="22px" Text="Go Next" Color="lavender" HoverColor="white" Border="1px solid lavender" HoverBorder="1px solid white" Click="OnClickGoNext"></BlazingButton>
+                        </Column>
+                    </Row>
+                }
+            </Column>
+        </Column>
+    }
+}
+
+
+
+@code {
+
+
+
+}

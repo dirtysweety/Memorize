@@ -1,0 +1,118 @@
+﻿@using BlazingComponents.Components
+@using BlazingComponents.Components.Binding
+@using Memorize.Components
+@using Memorize.Engine
+@using MemorizeShared
+@using MemorizeShared.Other
+@attribute [Page]
+
+
+<BlazingPage Height="100%">
+    <Transition Height="100%">
+        
+        <Row>
+            <RowGap Gap="0.5%"></RowGap>
+            <Row Style="flex-grow: 1; justify-content: space-between; align-items: center">
+                <BlazingButton Width="100px" Height="40px" FontSize="22px" Text="Return" Color="lavender" HoverColor="white" Click="OnClickBack"></BlazingButton>
+                <BlazingCloseButton Click="OnCloseClick"></BlazingCloseButton>
+            </Row>
+            <RowGap Gap="0.5%"></RowGap>
+        </Row>
+        
+        <ColumnGap Gap="60px"></ColumnGap>
+
+        @if (_stage == StageList)
+        {
+            <Row Style="justify-content: center">
+                <div style="font-size: 34px; color: white">List of Lessons</div>
+            </Row>
+
+            <ColumnGap Gap="80px"></ColumnGap>
+
+            <Row Style="justify-content: center">
+                <BlazingSearchBox @bind-Context:set="OnSearchContextChanged" @bind-Context:get="@(_searchBoxContext)" T="Lesson" Placeholder="Search..." Collection="@_searchCollection" Selector="@(l => l.Title)" Width="600px" Height="40px" FontSize="16px" BorderNormal="1px solid #778DA9" BorderHover="1px solid #98AFC7" BorderTyping="1px solid gold" ColorChangeWhileTyping="true" TextColor="white" DelayMilliseconds="2000"></BlazingSearchBox>
+            </Row>
+
+            <ColumnGap Gap="120px"></ColumnGap>
+
+            <Row Style="justify-content: center">
+                <Column Width="70%">
+                    @foreach (var l in _searchBoxContext!.Matches)
+                    {
+                        <ColumnGap Gap="10px"></ColumnGap>
+                        <LessonPreview @key="l" Lesson="@(l)" Click="OnLessonPreviewClicked"></LessonPreview>
+                    }
+                </Column>
+            </Row>
+            <ColumnGap Gap="200px"></ColumnGap>
+        }
+        else
+        {
+            <LessonDisplay Lesson="@(_currentLesson)"></LessonDisplay>
+        }
+        
+        <ColumnGap Gap="100px"></ColumnGap>
+    </Transition>
+</BlazingPage>
+
+
+@code {
+    int _stage = StageList;
+    const int StageList = 1;
+    const int StageLesson = 2;
+
+    private Lesson? _currentLesson;
+
+    private BlazingSearchBoxContext<Lesson>? _searchBoxContext;
+    readonly List<Lesson> _searchCollection = new();
+
+    private void OnSearchContextChanged(BlazingSearchBoxContext<Lesson>? context)
+    {
+        _searchBoxContext = context ?? throw new Exception("Unexpected search box context.");
+        if (_searchBoxContext.EventSource == BlazingSearchBoxEventSource.Search)
+        {
+            _searchBoxContext.ForceSearching = false;
+        }
+    }
+
+    void RenewSearchCollection()
+    {
+        _searchCollection.Clear();
+        _searchCollection.AddRange(Core.Lessons);
+    }
+
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _searchBoxContext = new BlazingSearchBoxContext<Lesson>("", true, true);
+        RenewSearchCollection();
+    }
+
+    static async Task OnCloseClick()
+    {
+        await Core.WaitAsync(); // Wait for anything possibly in progress.
+        await Core.OnApplicationExitAsync();
+        Application.Exit();
+        Core.Signal(); // Not really required.
+    }
+
+    public void OnClickBack()
+    {
+        if (_stage == StageLesson)
+        {
+            _stage = StageList;
+        }
+        else
+        {
+            Navigator.Navigate(nameof(Home));
+        }
+    }
+
+    private void OnLessonPreviewClicked(Lesson obj)
+    {
+        _currentLesson = obj;
+        _stage = StageLesson;
+    }
+
+}
