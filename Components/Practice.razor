@@ -1,47 +1,57 @@
-@if (_ex == null)
+@using BlazingComponents.Components
+@using BlazingUtilities
+@using MemorizeShared
+@implements IDisposable
+
+
+
+@if (Item == null)
         {
             <Row Style="flex-grow: 1; justify-content: center; align-items: center">
-                <div style="font-size: 28px; color: white; user-select: none">There is nothing to practice for now!</div>
+                <div style="font-size: 28px; color: white; user-select: none">Nothing to practice for now!</div>
             </Row>
         }
 else
 {
-    @if (_stage == StageBeforeStart)
+    @if (_stage == 0)
     {
         <Row Style="flex-grow: 1; justify-content: center; align-items: center">
-            <BlazingButton Width="200px" Height="60px" FontSize="26px" Text="Start" Border="1px solid lavender" HoverBorder="1px solid lime" Color="lavender" HoverColor="lime" Click="OnClickStart"></BlazingButton>
+            <BlazingButton Width="200px" Height="60px" FontSize="22px" Text="Start" Border="1px solid lavender" HoverBorder="1px solid lime" Color="lavender" HoverColor="lime" Click="Start"></BlazingButton>
         </Row>
     }
     else
     {
         <Column Style="flex-grow: 1">
-            <Row Height="30%" Style="justify-content: center; align-items: center">
-                <div style="font-size: 36px; color: white; user-select: none">@(_ex!.Value)</div>
+            <Row Height="25%" Style="justify-content: center; align-items: center">
+                <div style="font-size: 34px; color: white; user-select: none">@(Item!.Value)</div>
             </Row>
-            <Row Height="30%" Style="justify-content: center; align-items: center">
-                @if (_stage == StageTimer)
+            <Row Height="25%" Style="justify-content: center; align-items: center">
+                @if (_stage == 1)
                 {
-                    <div style="font-size: 30px; color: white; user-select: none">@(_currentSecond)</div>
+                    <div style="font-size: 34px; color: white; user-select: none">@(_currentSecond)</div>
                 }
                 else
                 {
-                    <div style="font-size: 34px; color: white; user-select: none">@(_ex!.Meaning)</div>
+                    <div style="font-size: 28px; color: white; user-select: none">@(Item!.Meaning)</div>
                 }
             </Row>
             <Column Height="40%" Style="justify-content: center; align-items: center">
-                @if (_stage == StageTimer)
+                @if (_stage == 1)
                 {
-                    <BlazingButton Width="100px" Height="40px" FontSize="18px" Text="Skip" Color="lavender" HoverColor="white" Click="OnClickSkipTimer"></BlazingButton>
+                    <BlazingButton Width="100px" Height="40px" FontSize="18px" Text="Skip" Color="lavender" HoverColor="white" Click="SkipTimer"></BlazingButton>
                 }
                 else
                 {
                     <Row Style="flex-grow: 1; width: 100%; justify-content: center">
-                        <Column Width="70%" Style="justify-content: center">
-                            <BlazingButton Height="60px" FontSize="22px" Text="Go Next" Color="lavender" HoverColor="white" Border="1px solid lavender" HoverBorder="1px solid white" Click="OnClickGoNext"></BlazingButton>
+                        <Column Width="60%" Style="justify-content: center">
+                            <BlazingButton Height="50px" FontSize="18px" Text="Go Next" Color="lavender" HoverColor="white" Border="1px solid lavender" HoverBorder="1px solid white" Click="GoNext"></BlazingButton>
+                            <ColumnGap Gap="20px"></ColumnGap>
+                            <BlazingButton Height="50px" FontSize="18px" Text="Dont show this word for a while" Color="lavender" HoverColor="white" Border="1px solid lavender" HoverBorder="1px solid white" Click="IgnoreForAWhile"></BlazingButton>
                         </Column>
                     </Row>
                 }
             </Column>
+            <ColumnGap Gap="10%"></ColumnGap>
         </Column>
     }
 }
@@ -49,7 +59,96 @@ else
 
 
 @code {
+    /// <summary>
+    /// 0 - Showing start button
+    /// 1 - Timer running
+    /// 2 - Showing Go Next button
+    /// </summary>
+    int _stage = 0;
+    int _currentSecond = 0;
+    Expression? _last = null;
+    TimedEventRaiser? _raiser;
+
+    [Parameter]
+    public Expression? Item { get; set; }
+
+    [Parameter]
+    public EventCallback ClickedGoNext { get; set; }
+
+    [Parameter]
+    public EventCallback ClickedIgnoreForAWhile { get; set; }
+
+    [Parameter]
+    public int DelaySecondsBeforeRevealing { get; set; } = 3;
+
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+        _raiser = new TimedEventRaiser(1000, AfterASecond);
+
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (DelaySecondsBeforeRevealing < 1) throw new Exception("Invalid delay time.");
+        if (Item == null) return;
+        if (_last == null)
+        {
+            _last = Item;
+        }
+        else if (_last != Item)
+        {
+            _last = Item;
+            StartTimerStage();          
+        }
+    }
+
+    private void Start() => StartTimerStage();
+
+    private Task AfterASecond() => InvokeAsync(WorkItem);
+
+    private Task GoNext() => ClickedGoNext.InvokeAsync();
+
+    private Task IgnoreForAWhile() => ClickedIgnoreForAWhile.InvokeAsync();
 
 
 
+    private void StartTimerStage()
+    {
+        if (_raiser == null) throw new Exception("Raiser incorrectly initialized");
+        _stage = 1;
+        _currentSecond = DelaySecondsBeforeRevealing;
+        _raiser.Set();
+    }
+
+    void WorkItem()
+    {
+        _currentSecond--;
+        if (_currentSecond == 0)
+        {
+            _stage = 2;
+        }
+        else
+        {
+            if (_raiser == null) throw new Exception("Raiser incorrectly initialized");
+            _raiser.Set();
+            
+        }
+        StateHasChanged();
+    }
+
+
+    private void SkipTimer()
+    {
+        if (_raiser == null) throw new Exception("Raiser incorrectly initialized");
+        _raiser.CancelIfRunning();
+        _stage = 2;
+    }
+
+    public void Dispose()
+    {
+        _raiser?.CancelIfRunning();
+        _raiser?.Dispose();
+    }
 }

@@ -16,7 +16,7 @@ namespace Memorize.Engine
         private const string UpdaterZipName = "Package.zip";
         private const string UpdaterExeName = "Memorize Updater.exe";
 
-        private const int RandomizationThreshold = 1; //Hours
+        private const int RandomizationThreshold = 6; //Hours
 
         private static DateTime _lastFailedOrCanceledUpdateAttemptDate;
 
