@@ -32,6 +32,7 @@ namespace Memorize.Engine
         public static List<Lesson> Lessons { get; } = new();
 
         private static readonly Dictionary<string, DateTime> RandomizedExpressions = new();
+        private static readonly Dictionary<string, (int, DateTime)> IgnoredExpressions = new();
 
         public static Dictionary<string, LessonState> LessonStates { get; } = new();
         public static Dictionary<string, ExpressionState> ExpressionStates { get; } = new();
@@ -48,8 +49,6 @@ namespace Memorize.Engine
 
         public static bool ShouldAttemptUpdate()
         {
-            return true;
-
             if (_lastFailedOrCanceledUpdateAttemptDate == default) return true;
             var today = DateTime.Today;
             var last = new DateTime(_lastFailedOrCanceledUpdateAttemptDate.Year,
@@ -140,6 +139,14 @@ namespace Memorize.Engine
                 shouldSave = true;
             }
 
+            var ignoredParent = root.Element(Const.IgnoredExpressions);
+            if (ignoredParent == null)
+            {
+                ignoredParent = XmlHandler.CreateElement(Const.IgnoredExpressions);
+                root.Add(ignoredParent);
+                shouldSave = true;
+            }
+
             try
             {
                 using HttpClient client = new HttpClient();
@@ -206,9 +213,9 @@ namespace Memorize.Engine
             bool shouldSave2 = LoadLessonStates(lStatesParent);
             bool shouldSave3 = LoadExpressionStates(eStatesParent);
             bool shouldSave4 = LoadRandomizedExpressions(randomizedParent);
-            
+            bool shouldSave5 = LoadIgnoredExpressions(ignoredParent);
 
-            if (shouldSave || shouldSave2 || shouldSave3 || shouldSave4) await SaveAsync();
+            if (shouldSave || shouldSave2 || shouldSave3 || shouldSave4|| shouldSave5) await SaveAsync();
         }
 
         private static void LoadAllLessonsAndExpressions(XElement lessonsParent, XElement expressionsParent)
@@ -327,6 +334,28 @@ namespace Memorize.Engine
             return shouldSave;
         }
 
+        private static bool LoadIgnoredExpressions(XElement parent)
+        {
+            bool shouldSave = false;
+            foreach (var elem in parent.Elements())
+            {
+                var refId = elem.GetStr(Const.Ref);
+                if (Expressions.FirstOrDefault(e => e.Id == refId) == null)
+                {
+                    elem.Remove();
+                    shouldSave = true;
+                }
+                else
+                {
+                    var time = elem.GetDateTime(Const.Time);
+                    var ignoredTimes = elem.GetInt(Const.IgnoredTimes);
+                    IgnoredExpressions.Add(refId, (ignoredTimes, time));
+                }
+            }
+
+            return shouldSave;
+        }
+
         public static Task ChangeLessonStateAsync(string lessonId, LessonState state)
         {
             var parent = XmlHandler.GetRoot().Element(Const.LessonStates).Check();
@@ -396,20 +425,22 @@ namespace Memorize.Engine
             Expression random;
             int checkedCount = 0;
             DateTime now;
-            bool existsInDic;
+            bool alreadyRandomized;
+            bool isIgnored;
             do
             {
                 if (checkedCount == Expressions.Count) return null;
                 now = DateTime.Now;
                 random = Expressions[Rnd.Next(0, Expressions.Count)];
-                existsInDic = RandomizedExpressions.ContainsKey(random.Id);
+                isIgnored = IgnoredExpressions.ContainsKey(random.Id);
+                alreadyRandomized = RandomizedExpressions.ContainsKey(random.Id);
                 checkedCount++;
 
-            } while (existsInDic && now - RandomizedExpressions[random.Id] < TimeSpan.FromHours(RandomizationThreshold));
+            } while (isIgnored || (alreadyRandomized && now - RandomizedExpressions[random.Id] < TimeSpan.FromHours(RandomizationThreshold)));
 
             var parent = XmlHandler.GetRoot().Element(Const.RandomizedExpressions).Check();
             var nowStr = now.ToString(CultureInfo.InvariantCulture);
-            if (existsInDic)
+            if (alreadyRandomized)
             {
                 RandomizedExpressions[random.Id] = now;
                 parent.Elements().FirstOrDefault(e => e.GetStr(Const.Ref) == random.Id).Check().SetAttribute(Const.Time, nowStr);
@@ -425,6 +456,32 @@ namespace Memorize.Engine
             }
             return random;
         }
+
+        public static void IgnoreExpression(Expression e)
+        {
+            if (!Expressions.Contains(e)) throw new Exception("Expression does not exist in the database");
+            DateTime now = DateTime.Now;
+            var parent = XmlHandler.GetRoot().Element(Const.IgnoredExpressions).Check();
+            if (IgnoredExpressions.TryGetValue(e.Id, out var values))
+            {
+                values.Item1 += 1;
+                values.Item2 = now;
+                var el = parent.Elements().FirstOrDefault(exp => exp.GetStr(Const.Ref) == e.Id) ?? throw new Exception("IgEx element does not exist");
+                el.SetAttribute(Const.IgnoredTimes, values.Item1);//TODO
+            }
+            else
+            {
+                IgnoredExpressions.Add(e.Id, (1, now));
+                var refAtt = XmlHandler.CreateAttribute(Const.Ref, e.Id);
+                var timesAtt = XmlHandler.CreateAttribute(Const.IgnoredTimes, "1");
+                var timeAtt = XmlHandler.CreateAttribute(Const.Time, now.ToString(CultureInfo.InvariantCulture));
+                var el = XmlHandler.CreateElement(Const.IgnoredExpression);
+                el.Add(refAtt, timesAtt, timeAtt);
+                parent.Add(el);
+            }
+        }
+
+
 
         public static string LessonStateRepresentation(LessonState state)
         {
