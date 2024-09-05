@@ -27,16 +27,20 @@
 @code
 {
 
-    Expression? _ex = null;
+    Expression? _ex;
 
-    async Task RandomizeAsync()
+    async Task RandomizeAsync(bool addLastOneToIgnoreList = false)
     {
         await Core.WaitAsync();
-        _ex = Core.Randomize();
-        if (_ex != null)
+        bool shouldSave = false;
+        if (addLastOneToIgnoreList && _ex != null)
         {
-            await Core.SaveAsync();
+            Core.IgnoreExpression(_ex);
+            shouldSave = true;
         }
+        _ex = Core.Randomize();
+        if (_ex != null) shouldSave = true;
+        if (shouldSave) await Core.SaveAsync();
         Core.Signal();
     }
 
@@ -58,6 +62,8 @@
         Core.Signal(); // Not really required.
     }
 
+
+
     private Task OnClickedGoNext()
     {
         return RandomizeAsync();
@@ -65,6 +71,6 @@
 
     private Task OnClickedIgnoreForAWhile()
     {
-        return RandomizeAsync();
+        return RandomizeAsync(true);
     }
 }

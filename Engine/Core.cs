@@ -17,6 +17,8 @@ namespace Memorize.Engine
         private const string UpdaterExeName = "Memorize Updater.exe";
 
         private const int RandomizationThreshold = 6; //Hours
+        private const int IgnoreDays = 14;
+        private const int IgnoreTimesMax = 3; //The Third time a word is marked for ignorance, It is fully learned. Never practice it again.
 
         private static DateTime _lastFailedOrCanceledUpdateAttemptDate;
 
@@ -420,23 +422,30 @@ namespace Memorize.Engine
 
         public static Task SaveAsync() => XmlHandler.SaveAsync();
 
+        public static bool ShouldIgnore(Expression e)
+        {
+            if (!IgnoredExpressions.TryGetValue(e.Id, out var values)) return false;
+            if (values.Item1 >= IgnoreTimesMax) return true; //Fully learned
+            var now = DateTime.Now;
+            return now - values.Item2 < TimeSpan.FromDays(IgnoreDays);
+
+        }
+
         public static Expression? Randomize()
         {
             Expression random;
             int checkedCount = 0;
             DateTime now;
             bool alreadyRandomized;
-            bool isIgnored;
             do
             {
                 if (checkedCount == Expressions.Count) return null;
                 now = DateTime.Now;
                 random = Expressions[Rnd.Next(0, Expressions.Count)];
-                isIgnored = IgnoredExpressions.ContainsKey(random.Id);
                 alreadyRandomized = RandomizedExpressions.ContainsKey(random.Id);
                 checkedCount++;
 
-            } while (isIgnored || (alreadyRandomized && now - RandomizedExpressions[random.Id] < TimeSpan.FromHours(RandomizationThreshold)));
+            } while (ShouldIgnore(random) || (alreadyRandomized && now - RandomizedExpressions[random.Id] < TimeSpan.FromHours(RandomizationThreshold)));
 
             var parent = XmlHandler.GetRoot().Element(Const.RandomizedExpressions).Check();
             var nowStr = now.ToString(CultureInfo.InvariantCulture);
@@ -466,8 +475,9 @@ namespace Memorize.Engine
             {
                 values.Item1 += 1;
                 values.Item2 = now;
-                var el = parent.Elements().FirstOrDefault(exp => exp.GetStr(Const.Ref) == e.Id) ?? throw new Exception("IgEx element does not exist");
-                el.SetAttribute(Const.IgnoredTimes, values.Item1);//TODO
+                var el = parent.Elements().FirstOrDefault(exp => exp.GetStr(Const.Ref) == e.Id).Check();
+                el.SetAttribute(Const.IgnoredTimes, values.Item1.ToString());
+                el.SetAttribute(Const.Time, now.ToString(CultureInfo.InvariantCulture));
             }
             else
             {
