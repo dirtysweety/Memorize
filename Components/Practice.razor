@@ -45,9 +45,12 @@ else
                     <Row Style="flex-grow: 1; width: 100%; justify-content: center">
                         <Column Width="60%" Style="justify-content: center">
                             <BlazingButton Height="50px" FontSize="18px" Text="Go Next" Color="lavender" HoverColor="white" Border="1px solid lavender" HoverBorder="1px solid white" Click="GoNext"></BlazingButton>
-                            <ColumnGap Gap="20px"></ColumnGap>
-                            <BlazingButton Height="50px" FontSize="18px" Text="Dont show this word for a while" Color="lavender" HoverColor="white" Border="1px solid lavender" HoverBorder="1px solid white" Click="IgnoreForAWhile"></BlazingButton>
-                        </Column>
+                            @if (DisplayIgnoreButton)
+                            {
+                                <ColumnGap Gap="20px"></ColumnGap>
+                                <BlazingButton Height="50px" FontSize="18px" Text="Dont show this word for a while" Color="lavender" HoverColor="white" Border="1px solid lavender" HoverBorder="1px solid white" Click="IgnoreForAWhile"></BlazingButton>
+                            }
+                            </Column>
                     </Row>
                 }
             </Column>
@@ -71,6 +74,9 @@ else
 
     [Parameter]
     public Expression? Item { get; set; }
+
+    [Parameter]
+    public bool DisplayIgnoreButton { get; set; } = true;
 
     [Parameter]
     public EventCallback ClickedGoNext { get; set; }

@@ -17,7 +17,9 @@ namespace Memorize.Engine
         private const string UpdaterExeName = "Memorize Updater.exe";
 
         private const int RandomizationThreshold = 6; //Hours
-        private const int IgnoreDays = 14;
+        private const int IgnoreDaysFirstTime = 3;
+        private const int IgnoreDaysSecondTime = 7;
+        private const int IgnoreDaysThirdTime = 14;
         private const int IgnoreTimesMax = 3; //The Third time a word is marked for ignorance, It is fully learned. Never practice it again.
 
         private static DateTime _lastFailedOrCanceledUpdateAttemptDate;
@@ -427,7 +429,9 @@ namespace Memorize.Engine
             if (!IgnoredExpressions.TryGetValue(e.Id, out var values)) return false;
             if (values.Item1 >= IgnoreTimesMax) return true; //Fully learned
             var now = DateTime.Now;
-            return now - values.Item2 < TimeSpan.FromDays(IgnoreDays);
+            int ignoreDays = values.Item1 == 1 ? IgnoreDaysFirstTime :
+                values.Item1 == 2 ? IgnoreDaysSecondTime : IgnoreDaysThirdTime;
+            return now - values.Item2 < TimeSpan.FromDays(ignoreDays);
 
         }
 

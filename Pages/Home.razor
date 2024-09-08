@@ -1,6 +1,5 @@
 @using BlazingComponents.Components
 @using Core = Memorize.Engine.Core
-@using MemorizeShared
 @using MemorizeShared.Other
 @attribute [Page, FirstPage]
 
@@ -16,38 +15,38 @@
         <ColumnGap Gap="60px"></ColumnGap>
 
         <Row Style="justify-content: center">
-            <div style="font-size: 34px; color: white">Welcome</div>
+            <div style="user-select: none; font-size: 68px; color: lavender">Welcome</div>
         </Row>
         
         <Column Style="flex-grow: 1; justify-content: center">
             <Row Style="justify-content: center">
-                <BlazingButton Text="Study Lessons" Width="500px" Height="50px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickStudyLessons"></BlazingButton>
+                <BlazingButton Text="Study Lessons" Width="450px" Height="60px" FontSize="18px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickStudyLessons"></BlazingButton>
             </Row>
 
-            <ColumnGap Gap="30px"></ColumnGap>
+            <ColumnGap Gap="25px"></ColumnGap>
         
             <Row Style="justify-content: center">
-                <BlazingButton Text="Practice Random Words" Width="500px" Height="50px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickPracticeRandomWords"></BlazingButton>
+                <BlazingButton Text="Practice Random Words" Width="450px" Height="60px" FontSize="18px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickPracticeRandomWords"></BlazingButton>
             </Row>
         
-            <ColumnGap Gap="30px"></ColumnGap>
+            <ColumnGap Gap="25px"></ColumnGap>
         
             <Row Style="justify-content: center">
-                <BlazingButton Text="Global Examination" Width="500px" Height="50px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickGlobalExamination"></BlazingButton>
+                <BlazingButton Text="Global Examination" Width="450px" Height="60px" FontSize="18px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickGlobalExamination"></BlazingButton>
             </Row>
         
-            <ColumnGap Gap="30px"></ColumnGap>
+            <ColumnGap Gap="25px"></ColumnGap>
         
             <Row Style="justify-content: center">
-                <BlazingButton Text="Custom Examination" Width="500px" Height="50px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickCustomExamination"></BlazingButton>
+                <BlazingButton Text="Custom Examination" Width="450px" Height="60px" FontSize="18px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickCustomExamination"></BlazingButton>
             </Row>
         </Column>
 
         <Row>
-            <RowGap Gap="1%"></RowGap>
-            <div style="font-size: 14px; color: #DAFFED; user-select: none">V @(Core.Version)</div>
+            <RowGap Gap="2%"></RowGap>
+            <div style="font-size: 16px; color: #DAFFED; user-select: none">Version @(Core.Version)</div>
         </Row>
-        <ColumnGap Gap="20px"></ColumnGap>
+        <ColumnGap Gap="30px"></ColumnGap>
     </Transition>
 </BlazingPage>
 
