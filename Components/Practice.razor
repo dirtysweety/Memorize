@@ -38,7 +38,8 @@ else
             <Column Height="40%" Style="justify-content: center; align-items: center">
                 @if (_stage == 1)
                 {
-                    <BlazingButton Width="100px" Height="40px" FontSize="18px" Text="Skip" Color="lavender" HoverColor="white" Click="SkipTimer"></BlazingButton>
+                    <BlazingButton Width="100px" Height="50px" FontSize="18px" Text="Skip" Color="lavender" HoverColor="white" Click="SkipTimer"></BlazingButton>
+                    <ColumnGap Gap="70px"></ColumnGap> @* Places skip button exactly where 'go next' button is. *@
                 }
                 else
                 {

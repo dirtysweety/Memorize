@@ -3,6 +3,7 @@ using System.Xml.Linq;
 using BlazingUtilities;
 using Memorize.Other;
 using MemorizeShared;
+using Microsoft.AspNetCore.Routing.Matching;
 using SharedCore = MemorizeShared.Engine.Core;
 
 namespace Memorize.Engine
@@ -24,28 +25,47 @@ namespace Memorize.Engine
 
         private static DateTime _lastFailedOrCanceledUpdateAttemptDate;
 
-        private static string _syncAddress = "";
+        private static string _syncAddress;
 
-        private static readonly Random Rnd = new();
+        private static readonly Random Rnd;
         
-        private static readonly XmlHandler XmlHandler = new();
+        private static readonly XmlHandler XmlHandler;
         public static bool UpdateAvailable { get; private set; }
-        public static string UpdateSource { get; private set; } = "";
+        public static string UpdateSource { get; private set; }
 
-        public static List<Expression> Expressions { get; } = new();
-        public static List<Lesson> Lessons { get; } = new();
+        public static List<Expression> Expressions { get; }
+        public static List<Lesson> Lessons { get; }
 
-        private static readonly Dictionary<string, DateTime> RandomizedExpressions = new();
-        private static readonly Dictionary<string, (int, DateTime)> IgnoredExpressions = new();
+        private static readonly Dictionary<string, DateTime> RandomizedExpressions;
+        private static readonly Dictionary<string, (int, DateTime)> IgnoredExpressions;
 
-        public static Dictionary<string, LessonState> LessonStates { get; } = new();
-        public static Dictionary<string, ExpressionState> ExpressionStates { get; } = new();
+        public static Dictionary<string, LessonState> LessonStates { get; }
+        public static Dictionary<string, ExpressionState> ExpressionStates { get; }
+
+        /// <summary>
+        /// Used to make all the expressions of a lesson get practiced before getting picked again
+        /// It is in-memory.
+        /// </summary>
+        public static Dictionary<string, List<string>> AlreadyRandomizedInExecutionSession { get; } = new();
+
+        static Core()
+        {
+            _syncAddress = "";
+            UpdateSource = "";
+            Rnd = new Random();
+            XmlHandler = new XmlHandler();
+            Expressions = new List<Expression>();
+            Lessons = new List<Lesson>();
+            RandomizedExpressions = new Dictionary<string, DateTime>();
+            IgnoredExpressions = new Dictionary<string, (int, DateTime)>();
+            LessonStates = new Dictionary<string, LessonState>();
+            ExpressionStates = new Dictionary<string, ExpressionState>();
+        }
 
         public static string GetUpdateFolderFullPath() => Path.Join(Path.GetTempPath(), UpdateFolderRelativePath);
         public static string GetUpdaterZipFullPath() => Path.Join(GetUpdateFolderFullPath(), UpdaterZipName);
         public static string GetUpdaterExeFullPath() => Path.Join(GetUpdateFolderFullPath(), UpdaterExeName);
-        public static string GetDataXmlFullPath() =>
-            Path.Join(AppDomain.CurrentDomain.BaseDirectory, DataXmlRelativePath);
+        public static string GetDataXmlFullPath() => Path.Join(AppDomain.CurrentDomain.BaseDirectory, DataXmlRelativePath);
 
         public static Task WaitAsync() => SharedCore.TaskQueue.WaitAsync();
 
@@ -435,6 +455,50 @@ namespace Memorize.Engine
 
         }
 
+        public static (Expression?, int) RandomizeForLesson(string lessonId)
+        {
+            Lesson lesson = Lessons.FirstOrDefault(l => l.Id == lessonId) ?? throw new Exception("Lesson not found");
+            var expressions = new List<Expression>(lesson.Expressions); //Not many, So copying is not a perf issue.
+            int c = expressions.Count;
+            int ignoredCount = 0;
+            int loopCount = 0;
+            bool shouldIgnore = false;
+            Expression random;
+            do
+            {
+                if (loopCount == c)
+                {
+                    return (null, ignoredCount);
+                }
+                random = expressions[Rnd.Next(0, expressions.Count)];
+                expressions.Remove(random);
+                loopCount++;
+                shouldIgnore = ShouldIgnore(random);
+                if (shouldIgnore) ignoredCount++;
+
+            } while (shouldIgnore || (AlreadyRandomizedInExecutionSession.ContainsKey(lessonId) &&
+                                      AlreadyRandomizedInExecutionSession[lessonId].Contains(random.Id)));
+
+            return (random, 0); //Why 0: 'random' is the first occurrence of a good candidate, so not all members are checked. 'ignoredCount' has no meaning.
+        }
+        
+
+        public static void MarkAsRandomized(string lessonId, string expressionId)
+        {
+            var lesson = Lessons.FirstOrDefault(l => l.Id == lessonId) ?? throw new Exception("Lesson not found");
+            _ = lesson.Expressions.FirstOrDefault(e => e.Id == expressionId) ?? throw new Exception("Expression not found");
+            var exists = AlreadyRandomizedInExecutionSession.TryGetValue(lessonId, out var list);
+            if (exists) list!.Add(expressionId);
+            else AlreadyRandomizedInExecutionSession.Add(lessonId, new List<string> { expressionId });
+        }
+
+        public static void UnMarkFromRandomized(string lessonId)
+        {
+            _ = Lessons.FirstOrDefault(l => l.Id == lessonId) ?? throw new Exception("Lesson not found");
+            var exists = AlreadyRandomizedInExecutionSession.ContainsKey(lessonId);
+            if (exists) AlreadyRandomizedInExecutionSession.Remove(lessonId);
+        }
+
         public static Expression? Randomize()
         {
             Expression random;
@@ -495,6 +559,24 @@ namespace Memorize.Engine
             }
         }
 
+        public static bool UnIgnoreAll(string lessonId, bool alsoUnMarkFromRandomized)
+        {
+            var lesson = Lessons.FirstOrDefault(l => l.Id == lessonId) ?? throw new Exception("Lesson not found");
+            var parent = XmlHandler.GetRoot().Element(Const.IgnoredExpressions).Check();
+            var list = lesson.Expressions.Where(ex => IgnoredExpressions.ContainsKey(ex.Id)).ToList();
+            List<string>? markedExpressions = null;
+            var unmark = alsoUnMarkFromRandomized && AlreadyRandomizedInExecutionSession.TryGetValue(lessonId, out markedExpressions);
+            if (list.Count == 0) return false;
+            foreach (var ex in list)
+            {
+                IgnoredExpressions.Remove(ex.Id);
+                if (unmark && markedExpressions!.Contains(ex.Id)) markedExpressions.Remove(ex.Id);
+                var el = parent.Elements().FirstOrDefault(e => e.GetStr(Const.Ref) == ex.Id).Check();
+                el.Remove();
+            }
+
+            return true;
+        }
 
 
         public static string LessonStateRepresentation(LessonState state)
@@ -511,11 +593,6 @@ namespace Memorize.Engine
         public static ValueTask OnApplicationExitAsync()
         {
             return ValueTask.CompletedTask;
-        }
-
-        public static Task<bool> AttemptLoginAsync(string userName, string password)
-        {
-            return Task.FromResult(false);
         }
     }
 }

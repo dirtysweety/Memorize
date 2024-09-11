@@ -24,17 +24,83 @@
     <ColumnGap Gap="40px"></ColumnGap>
 }
 
-<Row Style="justify-content: center">
-    <Column Style="background-color: #923A62" Width="75%">
-        @foreach (var ex in Lesson!.Expressions)
+
+        @if (_stage == StageShowWords)
         {
-            <ExpressionDisplay @key="ex" Expression="@(ex)"></ExpressionDisplay>
+            @foreach (var ex in Lesson!.Expressions)
+            {
+                <Row Style="justify-content: center">
+                    <Column Style="background-color: #9D0675" Width="75%">
+                        <ExpressionDisplay @key="ex" Expression="@(ex)"></ExpressionDisplay>
+                    </Column>
+                </Row>
+            }
         }
-    </Column>
-</Row>
+        else
+        {
+            if (_exIsPresent)
+            {
+                <Practice Item="@(_practiceEx)" DelaySecondsBeforeRevealing="4" ClickedGoNext="OnClickedGoNext" ClickedIgnoreForAWhile="OnClickedIgnoreForAWhile"></Practice>
+            }
+            else
+            {
+                <Row Style="justify-content: center">
+                    <div style="font-size: 28px; color: orangered; user-select: none">@(NothingToPracticeTitle())</div>
+                </Row>
+
+                <ColumnGap Gap="100px"></ColumnGap>
+
+                <Column Style="align-items: center">
+                    @if (_showIgnoredOnesMessage)
+                    {
+                        <div style="width: 400px; font-size: 16px; color: lavender; user-select: none">@(_ignoredOnesMessage)</div>
+
+                        <ColumnGap Gap="30px"></ColumnGap>
+                        <Row Style="width: 100%; justify-content: center">
+                            <BlazingButton Text="UnIgnore All" Width="250px" Height="40px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickUnIgnoreAll"></BlazingButton>
+                        </Row>
+                        <ColumnGap Gap="50px"></ColumnGap>
+                    }
+
+                    @if (_showAlreadyRandomizedOnesMessage)
+                    {
+                        <div style="width: 400px; font-size: 16px; color: lavender; user-select: none">@(_alreadyRandomizedOnesMessage)</div>
+                        <ColumnGap Gap="30px"></ColumnGap>
+                        <Row Style="width: 100%; justify-content: center">
+                            <BlazingButton Text="Re-Practice All" Width="250px" Height="40px" FontSize="16px" Border="1px solid lavender" HoverBorder="1px solid white" Color="lavender" HoverColor="white" Click="OnClickRePracticeAll"></BlazingButton>
+                        </Row>
+                    }
+                </Column>
+            }
+        }
+    
+
+<div @onmouseenter="ActionButtonOnMouseEnter" @onmouseleave="ActionButtonOnMouseLeave" @onclick="ActionButtonOnClick" style="display: flex; justify-content: center; align-items: center; position: fixed; bottom: 0; right: 0; margin-bottom: 50px; margin-right: 50px; width: 100px; height: 100px; border-radius: 50%; background-color: #B10684; box-shadow: @(_hoveringActionButton ? "0 0px 10px #D908A1" : "none"); transition: transform 0.3s; transform: @(_hoveringActionButton ? "translateY(8px)" : "none"); cursor: pointer">
+    <div style="display: flex; font-family: 'calibri'; font-size: 18px; color: lavender; user-select: none;">@(_actionButtonText)</div>
+</div>
 
 
 @code {
+
+        const string AllIgnoredMessage = "You have specified that all the vocabularies in this lesson should not be practiced for a while as they were too easy for you. If you want to un-ignore and practice them again, Click on the button below.";
+        const string SomeIgnoredMessage = "You have specified that some of the vocabularies in this lesson should not be practiced for a while as they were too easy for you. If you want to un-ignore and practice them again, Click on the button below.";
+        const string AllAlreadyRandomizedMessage = "All the vocabularies in this lesson are already practiced recently. If you want to practice them again, Click on the button below.";
+        const string SomeAlreadyRandomizedMessage = "Some of the vocabularies in this lesson are already practiced recently. If you want to practice them again, Click on the button below.";
+
+        const int StageShowWords = 1;
+        const int StagePractice = 2;
+
+    Expression? _practiceEx;
+    bool _exIsPresent;
+    bool _showIgnoredOnesMessage;
+    string _ignoredOnesMessage = "";
+    bool _showAlreadyRandomizedOnesMessage;
+    string _alreadyRandomizedOnesMessage = "";
+
+    string _actionButtonText = "Practice";
+    bool _hoveringActionButton = false;
+    bool _hasClickedRePracticeAll; // To display correct title.
+    int _stage = StageShowWords;
     string _fixedId = "";
     LessonState _state; // Performance reasons
 
@@ -99,4 +165,118 @@
                 throw new ArgumentOutOfRangeException();
         }
     }
+
+    string NothingToPracticeTitle()
+    {
+        if (!_hasClickedRePracticeAll && _showIgnoredOnesMessage && !_showAlreadyRandomizedOnesMessage)
+        {
+            return "This lesson is TOO EASY for you!";
+        }
+        return "Nothing to practice for now.";
+    }
+
+    void ActionButtonOnMouseEnter()
+    {
+        _hoveringActionButton = true;
+    }
+
+    void ActionButtonOnMouseLeave()
+    {
+        _hoveringActionButton = false;
+    }
+
+    void Randomize()
+    {
+        _hasClickedRePracticeAll = false;
+        var (random, ignoredCount) = Core.RandomizeForLesson(_fixedId);
+        if (random != null)
+        {
+            _practiceEx = random;
+            _exIsPresent = true;
+        }
+        else
+        {
+            _exIsPresent = false;
+            _practiceEx = null;
+            if (ignoredCount == 0)
+            {
+                _showIgnoredOnesMessage = false;
+                _showAlreadyRandomizedOnesMessage = true;
+                _ignoredOnesMessage = "";
+                _alreadyRandomizedOnesMessage = AllAlreadyRandomizedMessage;
+            }
+            else if (ignoredCount == Lesson!.Expressions.Count)
+            {
+                _showIgnoredOnesMessage = true;
+                _showAlreadyRandomizedOnesMessage = false;
+                _ignoredOnesMessage = AllIgnoredMessage;
+                _alreadyRandomizedOnesMessage = "";
+            }
+            else
+            {
+                _showIgnoredOnesMessage = true;
+                _showAlreadyRandomizedOnesMessage = true;
+                _ignoredOnesMessage = SomeIgnoredMessage;
+                _alreadyRandomizedOnesMessage = SomeAlreadyRandomizedMessage;
+            }
+        }
+    }
+
+    void ActionButtonOnClick()
+    {
+        if (_stage == StageShowWords)
+        {
+            _stage = StagePractice;
+            _actionButtonText = "Back";
+            Randomize();
+        }
+        else
+        {
+            _stage = StageShowWords;
+            _actionButtonText = "Practice";
+        }
+    }
+
+    private void OnClickedGoNext()
+    {
+        Core.MarkAsRandomized(_fixedId, _practiceEx!.Id);
+        Randomize();
+    }
+
+    private async Task OnClickedIgnoreForAWhile()
+    {
+        Core.MarkAsRandomized(_fixedId, _practiceEx!.Id);
+        await Core.WaitAsync();
+        Core.IgnoreExpression(_practiceEx);
+        await Core.SaveAsync();
+        Core.Signal();
+        Randomize();
+    }
+
+    private async Task OnClickUnIgnoreAll()
+    {
+        _showIgnoredOnesMessage = false;
+        _ignoredOnesMessage = "";
+        await Core.WaitAsync();
+        bool shouldSave = Core.UnIgnoreAll(_fixedId, true);
+        if (shouldSave) await Core.SaveAsync();
+        Core.Signal();
+        if (!_showAlreadyRandomizedOnesMessage)
+        {
+            Randomize();
+        }
+    }
+
+    private void OnClickRePracticeAll()
+    {
+        _hasClickedRePracticeAll = true;
+        Core.UnMarkFromRandomized(_fixedId);
+        _showAlreadyRandomizedOnesMessage = false;
+        _alreadyRandomizedOnesMessage = "";
+        if (!_showIgnoredOnesMessage)
+        {
+            Randomize();
+        }
+    }
+
 }

@@ -33,7 +33,7 @@
                 <BlazingSearchBox @bind-Context:set="OnSearchContextChanged" @bind-Context:get="@(_searchBoxContext)" T="Lesson" Placeholder="Search..." Collection="@_searchCollection" Selector="@(l => l.Title)" Width="600px" Height="40px" FontSize="16px" BorderNormal="1px solid #778DA9" BorderHover="1px solid #98AFC7" BorderTyping="1px solid gold" ColorChangeWhileTyping="true" TextColor="white" DelayMilliseconds="2000"></BlazingSearchBox>
             </Row>
 
-            <ColumnGap Gap="120px"></ColumnGap>
+            <ColumnGap Gap="100px"></ColumnGap>
 
             <Row Style="justify-content: center">
                 <Column Width="70%">
@@ -46,7 +46,7 @@
             </Row>
             <ColumnGap Gap="200px"></ColumnGap>
         }
-        else
+        else if (_stage == StageLesson)
         {
             <LessonDisplay Lesson="@(_currentLesson)"></LessonDisplay>
         }
@@ -60,7 +60,7 @@
     int _stage = StageList;
     const int StageList = 1;
     const int StageLesson = 2;
-
+    
     private Lesson? _currentLesson;
 
     private BlazingSearchBoxContext<Lesson>? _searchBoxContext;
